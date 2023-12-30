@@ -1,3 +1,4 @@
+import Register from "./components/Register"
 
 
 function App() {
@@ -5,7 +6,7 @@ function App() {
 
   return (
     <>
-      <div className='bg-red-500'>Vite + React</div>
+      <Register/>
     </>
   )
 }

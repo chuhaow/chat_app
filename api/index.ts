@@ -1,11 +1,14 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
+import mongoose, { connection } from 'mongoose';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
+import ws from 'ws';
 import UserModel, { IUser } from './models/User'; // Make sure to replace 'User' with the actual model file and interface
+import { IUserdata } from './interfaces/IUserdata';
+import { IConnectionData } from './interfaces/IConnectionData';
 
 dotenv.config();
 
@@ -76,7 +79,36 @@ app.get('/profile',(req: Request, res: Response) => {
 
 });
 
-const port = 4000; // You can specify your desired port
-app.listen(port, () => {
+const port:number = 4000; // You can specify your desired port
+const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+const wss = new ws.WebSocketServer({server})
+wss.on('connection', (connection: IConnectionData, req: Request)=>{
+  const cookies: string | undefined = req.headers.cookie;
+  if(cookies){
+    const tokenString: string | undefined = cookies.split(';').find(str => str.startsWith('token='));
+    if(tokenString){
+      const token = tokenString.split('=')[1];
+      if(token){
+        jwt.verify(token, jwtSecret,{}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload| undefined) =>{
+          if(err) throw err;
+          if(userdata){
+            const {userId, username} = (userdata as IUserdata);
+            connection.userId = userId;
+            connection.username = username;
+          }
+
+        })
+      }
+    }
+  }
+  [...wss.clients].forEach(client =>{
+    client.send(JSON.stringify({
+      online: [...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username}))
+    }
+      
+    ))
+  })
+})

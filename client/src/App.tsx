@@ -1,6 +1,7 @@
 import axios from "axios"
 import { UserContextProvider } from "./components/UserContext";
 import Routes from "./Routes";
+import Chat from "./components/Chat";
 
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
   axios.defaults.withCredentials=true;
 
   return (
+    //<Chat/>
     <UserContextProvider>
       <Routes/>
     </UserContextProvider>

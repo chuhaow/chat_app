@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Avatar from "./Avatar";
 
 export default function Chat(){
     const [ws, setWs] = useState<WebSocket | null>(null)
@@ -12,6 +13,7 @@ export default function Chat(){
 
     function handleMessage(e: MessageEvent){
         const messageData = JSON.parse(e.data);
+        console.log(messageData)
         if('online' in messageData){
             showOnline(messageData.online)
         }
@@ -31,7 +33,8 @@ export default function Chat(){
             <div className="bg-blue-50 w-1/3 pl-4 pt-4">
                 <div className="text-blue-500 font-bold">Chat App</div>
                 {Object.keys(onlinePeople).map(userId =>(
-                    <div className="border-b border-gray-100 py-2">
+                    <div className="border-b border-gray-100 py-2 flex items-center gap-2">
+                        <Avatar userId={userId} username={onlinePeople[userId]}/>
                         {onlinePeople[userId]}
                     </div>
                 ))}

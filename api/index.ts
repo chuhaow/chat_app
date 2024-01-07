@@ -105,6 +105,7 @@ wss.on('connection', (connection: IConnectionData, req: Request)=>{
     }
   }
   [...wss.clients].forEach(client =>{
+    console.log([...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username})))
     client.send(JSON.stringify({
       online: [...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username}))
     }

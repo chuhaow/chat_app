@@ -4,11 +4,18 @@ import Avatar from "./Avatar";
 export default function Chat(){
     const [ws, setWs] = useState<WebSocket | null>(null)
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: string}>({});
+    const [selectedChat, setSelectedChat] = useState<string>("...")
 
     useEffect(() =>{
         const websocket: WebSocket = new WebSocket('ws://localhost:4000')
-        setWs(websocket);
-        ws?.addEventListener('message', handleMessage)
+        websocket.addEventListener('open', () =>{
+            console.log("WebSocket connection opened");
+            setWs(websocket);
+            ws?.addEventListener('message', handleMessage)
+        })
+        
+        
+        console.log(websocket)
     }, [])
 
     function handleMessage(e: MessageEvent){
@@ -33,7 +40,7 @@ export default function Chat(){
             <div className="bg-blue-50 w-1/3 pl-4 pt-4">
                 <div className="text-blue-500 font-bold">Chat App</div>
                 {Object.keys(onlinePeople).map(userId =>(
-                    <div className="border-b border-gray-100 py-2 flex items-center gap-2">
+                    <div onClick={() => setSelectedChat(userId)}className="border-b border-gray-100 py-2 flex items-center gap-2 cursor-pointer">
                         <Avatar userId={userId} username={onlinePeople[userId]}/>
                         {onlinePeople[userId]}
                     </div>
@@ -41,7 +48,7 @@ export default function Chat(){
             </div>
             <div className="flex flex-col bg-blue-100 w-2/3 p-2">
                 <div className="flex-grow"> 
-                Message History
+                Message History with {onlinePeople[selectedChat]}
                 </div>
 
                 <div className="flex gap-2">

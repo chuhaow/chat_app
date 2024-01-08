@@ -95,6 +95,7 @@ wss.on('connection', (connection: IConnectionData, req: Request)=>{
         jwt.verify(token, jwtSecret,{}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload| undefined) =>{
           if(err) throw err;
           if(userdata){
+            console.log("Setting user data")
             const {userId, username} = (userdata as IUserdata);
             connection.userId = userId;
             connection.username = username;

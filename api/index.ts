@@ -9,6 +9,7 @@ import ws from 'ws';
 import UserModel, { IUser } from './models/User'; // Make sure to replace 'User' with the actual model file and interface
 import { IUserdata } from './interfaces/IUserdata';
 import { IConnectionData } from './interfaces/IConnectionData';
+import { IMessageData } from './interfaces/IMessageData';
 
 dotenv.config();
 
@@ -105,6 +106,20 @@ wss.on('connection', (connection: IConnectionData, req: Request)=>{
       }
     }
   }
+
+  (connection as WebSocket).addEventListener('message',(message: MessageEvent)=>{
+    
+    const messageData: IMessageData = JSON.parse(message.data);
+    console.log(messageData);
+    console.log(messageData.message.recipient && messageData.message.text);
+    if(messageData.message.recipient && messageData.message.text){
+      console.log(messageData.message.recipient && messageData.message.text);
+      [...wss.clients].filter(c => (c as unknown as IConnectionData).userId === messageData.message.recipient)
+      .forEach( c => c.send(JSON.stringify({messageData})))
+    }
+  });
+
+  //Notify of connections
   [...wss.clients].forEach(client =>{
     console.log([...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username})))
     client.send(JSON.stringify({

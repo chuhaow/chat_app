@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { FormEvent, useContext, useEffect, useState } from "react";
 import Avatar from "./Avatar";
 import { UserContext } from "./UserContext";
 
@@ -6,6 +6,7 @@ export default function Chat(){
     const [ws, setWs] = useState<WebSocket | null>(null)
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: string}>({});
     const [selectedChat, setSelectedChat] = useState<string | null>(null)
+    const [newTextMessage, setTextMessage] = useState<string>("");
     const {username} = useContext(UserContext)
     const {id} = useContext(UserContext)
     useEffect(() =>{
@@ -13,18 +14,20 @@ export default function Chat(){
         websocket.addEventListener('open', () =>{
             console.log("WebSocket connection opened");
             setWs(websocket);
-            ws?.addEventListener('message', handleMessage)
         })
         
         
         console.log(ws)
     }, [])
-
+    
+    ws?.addEventListener('message', handleMessage)
     function handleMessage(e: MessageEvent){
         const messageData = JSON.parse(e.data);
         console.log(messageData)
         if('online' in messageData){
             showOnline(messageData.online)
+        }else{
+            console.log(messageData)
         }
     }
 
@@ -38,6 +41,17 @@ export default function Chat(){
         console.log(peopleSet)
         setOnlinePeople(peopleSet);
         console.log(peopleSet);
+    }
+
+    function sendMessage(e: FormEvent){
+        e.preventDefault();
+        console.log("sending")
+        ws?.send(JSON.stringify({
+            message: {
+                recipient: selectedChat,
+                text: newTextMessage
+            }
+        }))
     }
 
     return(
@@ -59,11 +73,17 @@ export default function Chat(){
                         </div>
                     )}
                 </div>
+                {!!selectedChat && (
+                    <form className="flex gap-2" onSubmit={sendMessage}>
+                        <input type="text" 
+                            value={newTextMessage} 
+                            onChange={ev => setTextMessage(ev.target.value)}
+                            placeholder="Message here"
+                            className="bg-white border p-2 flex-grow rounded-sm text-black"></input>
+                        <button type="submit" className="bg-blue-500 p-2 text-white rounded-sm">Send</button>
+                    </form>
+                )}
 
-                <div className="flex gap-2">
-                    <input type="text" placeholder="Message here"className="bg-white border p-2 text-white flex-grow rounded-sm"></input>
-                    <button className="bg-blue-500 p-2 text-white rounded-sm">Send</button>
-                </div>
             </div>
         </div>
     );

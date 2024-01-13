@@ -9,7 +9,8 @@ import ws from 'ws';
 import UserModel, { IUser } from './models/User'; // Make sure to replace 'User' with the actual model file and interface
 import { IUserdata } from './interfaces/IUserdata';
 import { IConnectionData } from './interfaces/IConnectionData';
-import { IMessageData } from './interfaces/IMessageData';
+import { IMessageData as IMessagePackage } from './interfaces/IMessageData';
+import MessageModel from './models/Message';
 
 dotenv.config();
 
@@ -85,47 +86,67 @@ const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
 
-const wss = new ws.WebSocketServer({server})
-wss.on('connection', (connection: IConnectionData, req: Request)=>{
+const wss = new ws.WebSocketServer({ server });
+
+wss.on('connection', (connection: IConnectionData, req: Request) => {
   const cookies: string | undefined = req.headers.cookie;
-  if(cookies){
-    const tokenString: string | undefined = cookies.split(';').find(str => str.startsWith('token='));
-    if(tokenString){
+
+  if (cookies) {
+    const tokenString: string | undefined = cookies.split(';').find((str) => str.startsWith('token='));
+    if (tokenString) {
       const token = tokenString.split('=')[1];
-      if(token){
-        jwt.verify(token, jwtSecret,{}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload| undefined) =>{
-          if(err) throw err;
-          if(userdata){
-            console.log("Setting user data")
-            const {userId, username} = (userdata as IUserdata);
+      if (token) {
+        jwt.verify(token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) => {
+          if (err) throw err;
+          if (userdata) {
+            console.log('Setting user data');
+            const { userId, username } = userdata as IUserdata;
             connection.userId = userId;
             connection.username = username;
           }
-
-        })
+        });
       }
     }
   }
 
-  (connection as WebSocket).addEventListener('message',(message: MessageEvent)=>{
-    
-    const messageData: IMessageData = JSON.parse(message.data);
+  // Notify of connections
+  broadcastOnlineStatus();
+
+  connection.addEventListener('message', async (message: MessageEvent) => {
+    const messageData: IMessagePackage = JSON.parse(message.data);
     console.log(messageData);
-    console.log(messageData.message.recipient && messageData.message.text);
-    if(messageData.message.recipient && messageData.message.text){
-      console.log(messageData.message.recipient && messageData.message.text);
-      [...wss.clients].filter(c => (c as unknown as IConnectionData).userId === messageData.message.recipient)
-      .forEach( c => c.send(JSON.stringify({messageData})))
+
+    if (messageData.message.recipient && messageData.message.text) {
+      const messageDoc = await MessageModel.create({
+        sender:connection.userId,
+        recipient: messageData.message.recipient,
+        text: messageData.message.text
+      });
+      const recipientConnections = [...wss.clients].filter(
+        (c) => (c as unknown as IConnectionData).userId === messageData.message.recipient
+      );
+
+      recipientConnections.forEach((c) => c.send(JSON.stringify({
+        text: messageData.message.text,
+        sender: connection.userId,
+        id: messageDoc._id,
+      })));
     }
   });
 
-  //Notify of connections
-  [...wss.clients].forEach(client =>{
-    console.log([...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username})))
-    client.send(JSON.stringify({
-      online: [...wss.clients].map(c => ({userId: (c as unknown as IConnectionData).userId, username: (c as unknown as IConnectionData).username}))
-    }
-      
-    ))
-  })
-})
+  connection.addEventListener('close', () => {
+    // Notify of disconnection
+    broadcastOnlineStatus();
+  });
+});
+
+function broadcastOnlineStatus() {
+  const onlineStatus = [...wss.clients].map((c) => ({
+    userId: (c as unknown as IConnectionData).userId,
+    username: (c as unknown as IConnectionData).username,
+  }));
+
+  [...wss.clients].forEach((client) => {
+    client.send(JSON.stringify({ online: onlineStatus }));
+  });
+}

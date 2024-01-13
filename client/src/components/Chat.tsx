@@ -1,14 +1,23 @@
 import { FormEvent, useContext, useEffect, useState } from "react";
+import { uniqBy } from "lodash";
+
 import Avatar from "./Avatar";
 import { UserContext } from "./UserContext";
+import IMessage from "../Interfaces/IMessage"
+import IOnlineMessage from "../Interfaces/IOnlineMessage"
+import IUserData from "../Interfaces/IUserData";
+
 
 export default function Chat(){
     const [ws, setWs] = useState<WebSocket | null>(null)
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: string}>({});
     const [selectedChat, setSelectedChat] = useState<string | null>(null)
     const [newTextMessage, setTextMessage] = useState<string>("");
-    const {username} = useContext(UserContext)
+    const [messages, setMessages] = useState<IMessage[]>([])
     const {id} = useContext(UserContext)
+
+    type WebSocketMessage = IMessage | IOnlineMessage;
+
     useEffect(() =>{
         const websocket: WebSocket = new WebSocket('ws://localhost:4000')
         websocket.addEventListener('open', () =>{
@@ -22,16 +31,33 @@ export default function Chat(){
     
     ws?.addEventListener('message', handleMessage)
     function handleMessage(e: MessageEvent){
-        const messageData = JSON.parse(e.data);
-        console.log(messageData)
-        if('online' in messageData){
-            showOnline(messageData.online)
-        }else{
-            console.log(messageData)
+        try{
+            const messageData: WebSocketMessage = JSON.parse(e.data);
+
+            if('online' in messageData){
+                handleOnlineMessage(messageData as IOnlineMessage);
+            }else{
+                handleTextMessage(messageData as IMessage);
+            }
+        }catch(error){
+            console.error("Error parsing message: ", error);
         }
     }
 
-    function showOnline(people: []){
+    function handleOnlineMessage(onlineMessage: IOnlineMessage) {
+        showOnline(onlineMessage.online);
+    }
+      
+    function handleTextMessage(textMessage: IMessage) {
+        console.log(textMessage);
+        setMessages((prev) => ([...prev, {
+            id: textMessage.id, 
+            sender: textMessage.sender, 
+            text:textMessage.text, 
+            isOwner: false }]));
+    }
+
+    function showOnline(people: IUserData[]){
         const peopleSet: {[userId: string]: string} = {};
         people.forEach(({userId,username}) =>{
             if(userId !== id){
@@ -52,8 +78,16 @@ export default function Chat(){
                 text: newTextMessage
             }
         }))
+        setTextMessage("");
+        // Temp: Message sent won't have ids
+        // Set Messages should rely on server to get messages
+        setMessages(prev => ([...prev,{
+            id: Date.now().toString(), 
+            sender: "", 
+            text: newTextMessage, 
+            isOwner: true} ])) 
     }
-
+    const messagesWithoutDups: IMessage[] = uniqBy(messages, 'id')
     return(
         <div className="flex h-screen">
             <div className="bg-blue-50 w-1/3">
@@ -70,6 +104,18 @@ export default function Chat(){
                     {!selectedChat &&(
                         <div className="flex h-full flex-grow items-center justify-center"> 
                             <div className="text-gray-400"> no selected chat </div>
+                        </div>
+                    )} 
+                    {!!selectedChat &&(
+                        <div className="overflow-y-scroll">
+                            {messagesWithoutDups.map(message =>(
+                                <div className={` ${message.isOwner ? 'text-right' : 'text-left'}`}>
+                                    <div className={`inline-block p-2 m-2 rounded-md text-sm ${message.isOwner === true ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
+                                        {message.text}
+                                    </div>
+                                </div>
+                                
+                            ))}
                         </div>
                     )}
                 </div>

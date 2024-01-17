@@ -6,6 +6,7 @@ import { UserContext } from "./UserContext";
 import IMessage from "../Interfaces/IMessage"
 import IOnlineMessage from "../Interfaces/IOnlineMessage"
 import IUserData from "../Interfaces/IUserData";
+import axios from "axios";
 
 
 export default function Chat(){
@@ -100,6 +101,13 @@ export default function Chat(){
             console.log("Unable to get reference to message box")
         }
     }, [messages])
+
+    useEffect( () =>{
+        if(selectedChat){
+            axios.get(`/messageHistory/${selectedChat}`)
+        }
+
+    }, [selectedChat])
 
     const messagesWithoutDups: IMessage[] = uniqBy(messages, 'id')
     return(

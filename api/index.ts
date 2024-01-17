@@ -81,10 +81,37 @@ app.get('/profile',(req: Request, res: Response) => {
 
 });
 
+app.get('/messageHistory/:userId', async (req: Request, res: Response) =>{
+  const {userId} = req.params;
+  const userData: IUserdata = await getUserDataFromRequest(req);
+  const myUserId: string = userData.userId;
+  const messages = await MessageModel.find({
+    sender:{$in:[userId, myUserId]},
+    recipient:{$in:[userId, myUserId]}
+  }).sort({createdAt:-1})
+  res.json(messages)
+})
+
 const port:number = 4000; // You can specify your desired port
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+async function getUserDataFromRequest(req:Request): Promise<IUserdata>{
+  return new Promise( (resolve, reject) =>{
+    const {cookies} = req;
+    if(cookies && cookies.token){
+      jwt.verify(cookies.token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) =>{
+        if(err) reject(err);
+
+        resolve(userdata as IUserdata)
+      })
+    }else{
+      reject("no token")
+    }
+  })
+    
+}
 
 const wss = new ws.WebSocketServer({ server });
 

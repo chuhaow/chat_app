@@ -1,4 +1,4 @@
-import { FormEvent, useContext, useEffect, useState } from "react";
+import { FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { uniqBy } from "lodash";
 
 import Avatar from "./Avatar";
@@ -15,6 +15,7 @@ export default function Chat(){
     const [newTextMessage, setTextMessage] = useState<string>("");
     const [messages, setMessages] = useState<IMessage[]>([])
     const {id} = useContext(UserContext)
+    const messageBoxRef = useRef<HTMLDivElement>(null)
 
     type WebSocketMessage = IMessage | IOnlineMessage;
 
@@ -85,8 +86,21 @@ export default function Chat(){
             id: Date.now().toString(), 
             sender: "", 
             text: newTextMessage, 
-            isOwner: true} ])) 
+            isOwner: true} ]));
+        
+
+        
     }
+
+    useEffect(() =>{
+        const div = messageBoxRef.current;
+        if(div){
+            div.scrollTop = div.scrollHeight;
+        }else{
+            console.log("Unable to get reference to message box")
+        }
+    }, [messages])
+
     const messagesWithoutDups: IMessage[] = uniqBy(messages, 'id')
     return(
         <div className="flex h-screen">
@@ -107,15 +121,17 @@ export default function Chat(){
                         </div>
                     )} 
                     {!!selectedChat &&(
-                        <div className="overflow-y-scroll">
-                            {messagesWithoutDups.map(message =>(
-                                <div className={` ${message.isOwner ? 'text-right' : 'text-left'}`}>
-                                    <div className={`inline-block p-2 m-2 rounded-md text-sm ${message.isOwner === true ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
-                                        {message.text}
+                        <div className="relative h-full">    
+                            <div ref={messageBoxRef} className="overflow-y-scroll absolute inset-0">
+                                {messagesWithoutDups.map(message =>(
+                                    <div className={` ${message.isOwner ? 'text-right' : 'text-left'}`}>
+                                        <div className={`inline-block p-2 m-2 rounded-md text-sm ${message.isOwner === true ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
+                                            {message.text}
+                                        </div>
                                     </div>
-                                </div>
-                                
-                            ))}
+                                    
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

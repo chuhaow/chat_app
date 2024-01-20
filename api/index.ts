@@ -141,24 +141,24 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
 
   connection.addEventListener('message', async (message: MessageEvent) => {
     const messageData: IMessagePackage = JSON.parse(message.data);
-    
+    console.log(messageData);
 
-    if (messageData.message.recipient && messageData.message.text) {
+    if (messageData.recipient && messageData.text) {
       const messageDoc = await MessageModel.create({
         sender:connection.userId,
-        recipient: messageData.message.recipient,
-        text: messageData.message.text
+        recipient: messageData.recipient,
+        text: messageData.text
       });
-      console.log(messageData.message.text);
+      
       console.log(messageDoc)
       const recipientConnections = [...wss.clients].filter(
-        (c) => (c as unknown as IConnectionData).userId === messageData.message.recipient
+        (c) => (c as unknown as IConnectionData).userId === messageData.recipient
       );
 
       recipientConnections.forEach((c) => c.send(JSON.stringify({
-        text: messageData.message.text,
+        text: messageData.text,
         sender: connection.userId,
-        recipient: messageData.message.recipient,
+        recipient: messageData.recipient,
         _id: messageDoc._id,
       })));
     }

@@ -1,8 +1,7 @@
 export interface IMessageData
 {
-    message:{
-        recipient: string;
-        text: string;
-    }
-    
+    _id: string;
+    text: string;
+    sender: string | null;
+    recipient: string | null;
 }

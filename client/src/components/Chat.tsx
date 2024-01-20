@@ -7,42 +7,33 @@ import IMessage from "../Interfaces/IMessage"
 import IOnlineMessage from "../Interfaces/IOnlineMessage"
 import IUserData from "../Interfaces/IUserData";
 import axios from "axios";
+import WebSocketManager from "./WebSocketManager";
 
 
 export default function Chat(){
-    const [ws, setWs] = useState<WebSocket | null>(null)
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: string}>({});
     const [selectedChat, setSelectedChat] = useState<string | null>(null)
     const [newTextMessage, setTextMessage] = useState<string>("");
     const [messages, setMessages] = useState<IMessage[]>([])
     const {id} = useContext(UserContext)
     const messageBoxRef = useRef<HTMLDivElement>(null)
-
+    const webSocketManagerRef = useRef<WebSocketManager | null>(null);
     type WebSocketMessage = IMessage | IOnlineMessage;
 
     useEffect(() =>{
-        connectToWs()
+        //connectToWs()
+        const manager = new WebSocketManager({onMessageReceived: handleMessage});
+        webSocketManagerRef.current = manager;
+        return () =>{
+            manager.cleanup();
+        }
     }, [])
 
-    function connectToWs(){
-        const websocket: WebSocket = new WebSocket('ws://localhost:4000')
-        websocket.addEventListener('open', () =>{
-            console.log("WebSocket connection opened");
-            setWs(websocket);
-        })
-        websocket.addEventListener('close',() =>{
-            setTimeout(() =>{
-                console.log("Disconnected trying to reconnect...")
-                connectToWs(); 
-            }, 1000)
-           
-        } )
-    }
-    
-    ws?.addEventListener('message', handleMessage)
-    function handleMessage(e: MessageEvent){
+
+    //ws?.addEventListener('message', handleMessage)
+    function handleMessage(messageData: IMessage | IOnlineMessage){
         try{
-            const messageData: WebSocketMessage = JSON.parse(e.data);
+            //const messageData: WebSocketMessage = JSON.parse(e.data);
 
             if('online' in messageData){
                 handleOnlineMessage(messageData as IOnlineMessage);
@@ -82,12 +73,14 @@ export default function Chat(){
     function sendMessage(e: FormEvent){
         e.preventDefault();
         console.log("sending")
-        ws?.send(JSON.stringify({
-            message: {
+        webSocketManagerRef.current?.sendMessage(
+            {
+                _id: Date.now().toString(),
+                text: newTextMessage,
+                sender: id,
                 recipient: selectedChat,
-                text: newTextMessage
             }
-        }))
+        )
         setTextMessage("");
         // Temp: Message sent won't have ids
         // Set Messages should rely on server to get messages
@@ -124,6 +117,7 @@ export default function Chat(){
     const messagesWithoutDups: IMessage[] = uniqBy(messages, '_id')
     console.log(messagesWithoutDups)
     return(
+        
         <div className="flex h-screen">
             <div className="bg-blue-50 w-1/3">
                 <div className="text-blue-500 font-bold p-4">Chat App</div>

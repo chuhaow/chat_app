@@ -88,7 +88,7 @@ app.get('/messageHistory/:userId', async (req: Request, res: Response) =>{
   const messages = await MessageModel.find({
     sender:{$in:[userId, myUserId]},
     recipient:{$in:[userId, myUserId]}
-  }).sort({createdAt:-1})
+  }).sort({createdAt:1})
   res.json(messages)
 })
 
@@ -141,7 +141,7 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
 
   connection.addEventListener('message', async (message: MessageEvent) => {
     const messageData: IMessagePackage = JSON.parse(message.data);
-    console.log(messageData);
+    
 
     if (messageData.message.recipient && messageData.message.text) {
       const messageDoc = await MessageModel.create({
@@ -149,6 +149,8 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
         recipient: messageData.message.recipient,
         text: messageData.message.text
       });
+      console.log(messageData.message.text);
+      console.log(messageDoc)
       const recipientConnections = [...wss.clients].filter(
         (c) => (c as unknown as IConnectionData).userId === messageData.message.recipient
       );
@@ -156,7 +158,8 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
       recipientConnections.forEach((c) => c.send(JSON.stringify({
         text: messageData.message.text,
         sender: connection.userId,
-        id: messageDoc._id,
+        recipient: messageData.message.recipient,
+        _id: messageDoc._id,
       })));
     }
   });

@@ -9,7 +9,7 @@ interface IMessage extends Document{
 const MessageSchema = new mongoose.Schema({
     sender: {type: Types.ObjectId, ref: 'User'},
     recipient: {type: Types.ObjectId, ref: 'User'},
-    text: {String},
+    text: {type: String},
 }, {timestamps:true})
 
 const MessageModel = mongoose.model<IMessage>('Message', MessageSchema);

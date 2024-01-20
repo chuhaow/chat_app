@@ -61,10 +61,10 @@ export default function Chat(){
     function handleTextMessage(textMessage: IMessage) {
         console.log(textMessage);
         setMessages((prev) => ([...prev, {
-            id: textMessage.id, 
+            _id: textMessage._id, 
             sender: textMessage.sender, 
             text:textMessage.text, 
-            isOwner: false }]));
+            recipient: textMessage.recipient }]));
     }
 
     function showOnline(people: IUserData[]){
@@ -92,10 +92,10 @@ export default function Chat(){
         // Temp: Message sent won't have ids
         // Set Messages should rely on server to get messages
         setMessages(prev => ([...prev,{
-            id: Date.now().toString(), 
-            sender: "", 
+            _id: Date.now().toString(), 
+            sender: id, 
             text: newTextMessage, 
-            isOwner: true} ]));
+            recipient: selectedChat} ]));
         
 
         
@@ -112,12 +112,17 @@ export default function Chat(){
 
     useEffect( () =>{
         if(selectedChat){
-            axios.get(`/messageHistory/${selectedChat}`)
+            axios.get(`/messageHistory/${selectedChat}`).then( res =>{
+                const {data} = res;
+                console.log(res)
+                setMessages(data)
+            })
         }
 
     }, [selectedChat])
 
-    const messagesWithoutDups: IMessage[] = uniqBy(messages, 'id')
+    const messagesWithoutDups: IMessage[] = uniqBy(messages, '_id')
+    console.log(messagesWithoutDups)
     return(
         <div className="flex h-screen">
             <div className="bg-blue-50 w-1/3">
@@ -140,8 +145,8 @@ export default function Chat(){
                         <div className="relative h-full">    
                             <div ref={messageBoxRef} className="overflow-y-scroll absolute inset-0">
                                 {messagesWithoutDups.map(message =>(
-                                    <div className={` ${message.isOwner ? 'text-right' : 'text-left'}`}>
-                                        <div className={`inline-block p-2 m-2 rounded-md text-sm ${message.isOwner === true ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
+                                    <div className={` ${message.sender === id ? 'text-right' : 'text-left'}`}>
+                                        <div className={`inline-block p-2 m-2 rounded-md text-sm ${message.sender === id ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
                                             {message.text}
                                         </div>
                                     </div>

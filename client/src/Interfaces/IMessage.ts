@@ -1,6 +1,6 @@
 export default interface IMessage {
-    id: string;
+    _id: string;
     text: string;
-    sender: string;
-    isOwner: boolean;
+    sender: string | null;
+    recipient: string | null;
   }

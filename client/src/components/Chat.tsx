@@ -21,15 +21,23 @@ export default function Chat(){
     type WebSocketMessage = IMessage | IOnlineMessage;
 
     useEffect(() =>{
+        connectToWs()
+    }, [])
+
+    function connectToWs(){
         const websocket: WebSocket = new WebSocket('ws://localhost:4000')
         websocket.addEventListener('open', () =>{
             console.log("WebSocket connection opened");
             setWs(websocket);
         })
-        
-        
-        console.log(ws)
-    }, [])
+        websocket.addEventListener('close',() =>{
+            setTimeout(() =>{
+                console.log("Disconnected trying to reconnect...")
+                connectToWs(); 
+            }, 1000)
+           
+        } )
+    }
     
     ws?.addEventListener('message', handleMessage)
     function handleMessage(e: MessageEvent){

@@ -1,5 +1,5 @@
 export interface IConnectionData extends WebSocket
 {
-    userId: string;
+    _id: string;
     username: string;
 }

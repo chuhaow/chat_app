@@ -1,4 +1,4 @@
 export default interface IUserData{
-    userId: string,
+    _id: string,
     username: string
 }

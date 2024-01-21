@@ -92,6 +92,11 @@ app.get('/messageHistory/:userId', async (req: Request, res: Response) =>{
   res.json(messages)
 })
 
+app.get('/people', async (req: Request, res: Response) =>{
+  const allUsers = await UserModel.find({}, {'_id':1,username:1});
+  res.json(allUsers);
+})
+
 const port:number = 4000; // You can specify your desired port
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
@@ -128,7 +133,7 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
           if (userdata) {
             console.log('Setting user data');
             const { userId, username } = userdata as IUserdata;
-            connection.userId = userId;
+            connection._id = userId;
             connection.username = username;
           }
         });
@@ -145,19 +150,19 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
 
     if (messageData.recipient && messageData.text) {
       const messageDoc = await MessageModel.create({
-        sender:connection.userId,
+        sender:connection._id,
         recipient: messageData.recipient,
         text: messageData.text
       });
       
       console.log(messageDoc)
       const recipientConnections = [...wss.clients].filter(
-        (c) => (c as unknown as IConnectionData).userId === messageData.recipient
+        (c) => (c as unknown as IConnectionData)._id === messageData.recipient
       );
 
       recipientConnections.forEach((c) => c.send(JSON.stringify({
         text: messageData.text,
-        sender: connection.userId,
+        sender: connection._id,
         recipient: messageData.recipient,
         _id: messageDoc._id,
       })));
@@ -172,7 +177,7 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
 
 function broadcastOnlineStatus() {
   const onlineStatus = [...wss.clients].map((c) => ({
-    userId: (c as unknown as IConnectionData).userId,
+    _id: (c as unknown as IConnectionData)._id,
     username: (c as unknown as IConnectionData).username,
   }));
 

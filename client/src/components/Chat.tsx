@@ -17,7 +17,7 @@ export default function Chat(){
     const [newTextMessage, setTextMessage] = useState<string>("");
     const [messages, setMessages] = useState<IMessage[]>([])
     const [offlinePeople, setOfflinePeople] = useState<{[userId: string]: IUserData}>({});
-    const {id} = useContext(UserContext)
+    const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
     const messageBoxRef = useRef<HTMLDivElement>(null)
     const webSocketManagerRef = useRef<WebSocketManager | null>(null);
     
@@ -26,9 +26,7 @@ export default function Chat(){
         //connectToWs()
         const manager = new WebSocketManager({onMessageReceived: handleMessage});
         webSocketManagerRef.current = manager;
-        return () =>{
-            manager.cleanup();
-        }
+
     }, [])
 
 
@@ -48,8 +46,8 @@ export default function Chat(){
     }
 
     function handleOnlineMessage(onlineMessage: IOnlineMessage) {
-        showOnline(onlineMessage.online);
-        console.log(onlineMessage.online)
+        showOnline(onlineMessage.online.filter(value => Object.keys(value).length !== 0));
+        console.log(onlineMessage.online.filter(value => Object.keys(value).length !== 0))
     }
       
     function handleTextMessage(textMessage: IMessage) {
@@ -99,6 +97,13 @@ export default function Chat(){
 
         
     }
+    function logout(){
+        axios.post('/logout').then( () =>{
+            setId(null);
+            setLoggedInUsername(null);
+            webSocketManagerRef.current?.cleanup();
+        })
+    }
 
     useEffect(() =>{
         const div = messageBoxRef.current;
@@ -141,24 +146,33 @@ export default function Chat(){
     return(
         
         <div className="flex h-screen">
-            <div className="bg-blue-50 w-1/3">
-                <div className="text-blue-500 font-bold p-4">Chat App</div>
-                {Object.keys(onlinePeople).map(userId =>(
-                    <Contact 
-                    username={onlinePeople[userId].username} 
-                    id={userId}
-                    onClick={ () => setSelectedChat(userId)}
-                    selectedUserId={selectedChat}
-                    online={true}/>
-                ))}
-                {Object.keys(offlinePeople).map(userId =>(
-                    <Contact 
-                    username={offlinePeople[userId].username} 
-                    id={userId}
-                    onClick={ () => setSelectedChat(userId)}
-                    selectedUserId={selectedChat}
-                    online={false}/>
-                ))}
+            <div className="bg-blue-50 w-1/3 flex flex-col">
+                <div className="flex-grow">
+                    <div className="text-blue-500 font-bold p-4">Chat App</div>
+                    {Object.keys(onlinePeople).map(userId =>(
+                        <Contact 
+                        username={onlinePeople[userId].username} 
+                        id={userId}
+                        onClick={ () => setSelectedChat(userId)}
+                        selectedUserId={selectedChat}
+                        online={true}/>
+                    ))}
+                    {Object.keys(offlinePeople).map(userId =>(
+                        <Contact 
+                        username={offlinePeople[userId].username} 
+                        id={userId}
+                        onClick={ () => setSelectedChat(userId)}
+                        selectedUserId={selectedChat}
+                        online={false}/>
+                    ))}
+                </div>
+                <div className="p-2 text-center">
+                    <span className="mr-2 text-sm text-gray-600">Welcome {username}</span>
+                    <button 
+                    onClick={logout}
+                    className="text-sm bg-blue-100 py-1 px-2 text-gray-500 border rounded-sm">Logout</button>
+                    </div>
+
             </div>
             <div className="flex flex-col bg-blue-100 w-2/3 p-2">
                 <div className="flex-grow"> 

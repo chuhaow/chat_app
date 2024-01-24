@@ -68,6 +68,10 @@ app.post('/login', async (req: Request, res: Response) =>{
   }
 })
 
+app.post('/logout', (req:Request, res:Response) =>{
+  res.cookie('token', '',{sameSite:'none', secure:true}).json('ok')
+})
+
 app.get('/profile',(req: Request, res: Response) => {
   const {cookies} = req;
   if(cookies && cookies.token){
@@ -120,9 +124,9 @@ async function getUserDataFromRequest(req:Request): Promise<IUserdata>{
 
 const wss = new ws.WebSocketServer({ server });
 
-wss.on('connection', (connection: IConnectionData, req: Request) => {
+wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => {
   const cookies: string | undefined = req.headers.cookie;
-
+  
   if (cookies) {
     const tokenString: string | undefined = cookies.split(';').find((str) => str.startsWith('token='));
     if (tokenString) {
@@ -168,12 +172,19 @@ wss.on('connection', (connection: IConnectionData, req: Request) => {
       })));
     }
   });
-
+  
   connection.addEventListener('close', () => {
     // Notify of disconnection
+    console.log(wss.clients.size);
+    const clientsSet: Set<WebSocket> = wss.clients as any;
+    clientsSet.delete(connection);
+    console.log(wss.clients.size);
+    connection.close()
+    console.log("closing...")
     broadcastOnlineStatus();
   });
 });
+
 
 function broadcastOnlineStatus() {
   const onlineStatus = [...wss.clients].map((c) => ({

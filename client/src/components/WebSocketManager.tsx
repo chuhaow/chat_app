@@ -36,8 +36,15 @@ class WebSocketManager {
 
   private handleMessage = (e: MessageEvent) => {
     try {
-      const messageData: WebSocketMessage = JSON.parse(e.data);
-      this.onMessageReceived(messageData);
+      //console.log(e.data);
+      if(e.data === 'ping'){
+        this.ws?.send('pong');
+        return;
+      }else{
+        const messageData: WebSocketMessage = JSON.parse(e.data);
+        this.onMessageReceived(messageData);
+      }
+
     } catch (error) {
       console.error("Error parsing message: ", error);
     }

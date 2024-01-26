@@ -11,7 +11,7 @@ import { IUserdata } from './interfaces/IUserdata';
 import { IConnectionData } from './interfaces/IConnectionData';
 import { IMessageData as IMessagePackage } from './interfaces/IMessageData';
 import MessageModel from './models/Message';
-
+import UniqueConnectionSet from './Helper/UniqueConnectionSet';
 dotenv.config();
 
 mongoose.connect(process.env.MONGO_CONNECTION_STRING || "");
@@ -123,7 +123,7 @@ async function getUserDataFromRequest(req:Request): Promise<IUserdata>{
 }
 
 const wss = new ws.WebSocketServer({ server });
-
+const activeConnections = new UniqueConnectionSet();
 wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => {
   const cookies: string | undefined = req.headers.cookie;
   
@@ -139,60 +139,92 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             const { userId, username } = userdata as IUserdata;
             connection._id = userId;
             connection.username = username;
+            activeConnections.add(connection);
           }
         });
       }
     }
   }
 
+  // connection.addEventListener('message', (message: MessageEvent) =>{
+  //     const messageStr: string = message.data;
+  //     console.log(messageStr)
+  //     if(messageStr === 'pong'){
+  //       console.log("Still Alive")
+  //     } 
+  // } ) 
+  connection.isAlive = true;
+
+  const pingInterval = setInterval( () => {
+    connection.send('ping')
+    connection.deathTimer = setTimeout( () =>{
+      connection.close();
+      console.log("Dead")
+      connection.isAlive = false;
+    }, 1000)
+  }, 5000)
+ 
   // Notify of connections
   broadcastOnlineStatus();
 
   connection.addEventListener('message', async (message: MessageEvent) => {
-    const messageData: IMessagePackage = JSON.parse(message.data);
-    console.log(messageData);
+    const messageStr: string = message.data;
 
-    if (messageData.recipient && messageData.text) {
-      const messageDoc = await MessageModel.create({
-        sender:connection._id,
-        recipient: messageData.recipient,
-        text: messageData.text
-      });
-      
-      console.log(messageDoc)
-      const recipientConnections = [...wss.clients].filter(
-        (c) => (c as unknown as IConnectionData)._id === messageData.recipient
-      );
-
-      recipientConnections.forEach((c) => c.send(JSON.stringify({
-        text: messageData.text,
-        sender: connection._id,
-        recipient: messageData.recipient,
-        _id: messageDoc._id,
-      })));
+    if(messageStr === 'pong'){
+      clearTimeout(connection.deathTimer);
+      //console.log("Still Alive")
+    }else{
+      try{
+        const messageData: IMessagePackage = JSON.parse(message.data);
+        console.log(messageData);
+    
+        if (messageData.recipient && messageData.text) {
+          const messageDoc = await MessageModel.create({
+            sender:connection._id,
+            recipient: messageData.recipient,
+            text: messageData.text
+          });
+    
+          console.log(messageDoc)
+          const recipientConnections = [...wss.clients].filter(
+            (c) => (c as unknown as IConnectionData)._id === messageData.recipient
+          );
+    
+          recipientConnections.forEach((c) => c.send(JSON.stringify({
+            text: messageData.text,
+            sender: connection._id,
+            recipient: messageData.recipient,
+            _id: messageDoc._id,
+          })));
+        }
+      }catch(error){
+        console.error("Error parsing JSON:", error);
+      }
     }
+
   });
   
   connection.addEventListener('close', () => {
     // Notify of disconnection
-    console.log(wss.clients.size);
-    const clientsSet: Set<WebSocket> = wss.clients as any;
-    clientsSet.delete(connection);
-    console.log(wss.clients.size);
-    connection.close()
+    console.log(activeConnections.size);
+
+    activeConnections.delete(connection);
+    console.log(activeConnections.size);
     console.log("closing...")
+    clearInterval(pingInterval)
     broadcastOnlineStatus();
   });
 });
 
 
 function broadcastOnlineStatus() {
-  const onlineStatus = [...wss.clients].map((c) => ({
-    _id: (c as unknown as IConnectionData)._id,
-    username: (c as unknown as IConnectionData).username,
+  const onlineStatus = [...activeConnections].map((c) => ({
+    _id: c._id,
+    username: c.username,
   }));
-
-  [...wss.clients].forEach((client) => {
+  console.log(" Stat: -----------------------------------")
+  console.log(onlineStatus)
+  activeConnections.forEach((client) => {
     client.send(JSON.stringify({ online: onlineStatus }));
   });
 }

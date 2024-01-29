@@ -36,17 +36,28 @@ app.post('/register', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     const hashPassword = bcrypt.hashSync(password, salt)
-    const createdUser: IUser = await UserModel.create({ 
-      username: username, 
-      password: hashPassword
-    });
-
-    jwt.sign({ userId: createdUser._id, username }, jwtSecret, (err:any, token:string | undefined) => {
-      if (err) throw err;
-      res.cookie('token', token, {sameSite:'none', secure:true}).status(201).json({
-        _id: createdUser._id,
+    console.log("1here")
+    try {
+      const createdUser: IUser = await UserModel.create({ 
+        username: username, 
+        password: hashPassword
       });
-    });
+      console.log("here")
+      jwt.sign({ userId: createdUser._id, username }, jwtSecret, (err:any, token:string | undefined) => {
+        if (err) throw err;
+        res.cookie('token', token, {sameSite:'none', secure:true}).status(201).json({
+          _id: createdUser._id,
+        });
+      });
+    } catch (error) {
+        if(error instanceof Error && (error as any).code === 11000){
+          res.status(400).json({error: "Username already exists"})
+        }else{
+          throw error;
+        }
+    }
+
+
   } catch (error) {
     console.error(error);
     res.status(500).json('Internal Server Error');
@@ -60,11 +71,16 @@ app.post('/login', async (req: Request, res: Response) =>{
     const isPassCorrect = bcrypt.compareSync(password, foundUser.password);
     if(isPassCorrect){
       jwt.sign({ userId: foundUser._id, username }, jwtSecret, {}, (err, token) =>{
+        if (err) throw err;
         res.cookie('token', token, {sameSite: 'none', secure:true}).json({
           id: foundUser._id
         })
       })
+    }else{
+      res.status(401).json({error: "Password is incorrect"})
     }
+  }else{
+    res.status(400).json({error: "User is not found"})
   }
 })
 

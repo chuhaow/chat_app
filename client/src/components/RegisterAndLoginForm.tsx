@@ -1,33 +1,49 @@
 import {useContext, useState} from "react"
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { UserContext } from "./UserContext";
+import RegisterForm from "./RegisterForm";
+import LoginForm from "./LoginForm";
 export default function RegisterAndLoginForm(){
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const {setLoggedInUsername, setId} = useContext(UserContext);
     const [IsLoginOrRegister, setIsLoginOrRegister] = useState('register')
+    const [error, setError] = useState<string | null>(null);
     async function handleSubmit(ev: React.FormEvent<HTMLFormElement>){
         const endpoint = IsLoginOrRegister === 'register' ? '/register': '/login';
         ev.preventDefault();
-        const {data} = await axios.post(endpoint, {username,password})
-        setLoggedInUsername(username);
-        setId(data.id);
+        try{
+            const {data} = await axios.post(endpoint, {username,password})
+            setLoggedInUsername(username);
+            setId(data.id);
+        }catch(error){
+            if(axios.isAxiosError(error)){
+                const axiosError = error as AxiosError;
+
+                if(axiosError.response?.status === 400){
+                    setError('Username already exists');
+                }else if(axiosError.response?.status === 401){
+                    setError(axiosError.response?.statusText)
+                }
+                else{
+                    setError("An error has occurred. Please try again later.")
+                }
+            }else{
+                setError("An unexpected error occurred");
+            }
+        }
+
     }
 
     return(
-        <div className="bg-blue-50 h-screen flex items-center">
-            <form className="w-64 mx-auto mb-12" onSubmit={handleSubmit}>
-                <input 
-                value={username} 
-                onChange={ev => setUsername(ev.target.value)}
-                type="text" placeholder="username" className="block w-full rounded-md p-2 mb-2 border"/>
-                <input value={password} 
-                onChange={ev => setPassword(ev.target.value)}
-                type="password" placeholder="password" className="block w-full rounded-md p-2 mb-2 border"/>
-                <button className="bg-blue-500 text-white block w-full rounded-md">
-                    {IsLoginOrRegister === 'register' ? 'Register': 'Login'}
-                </button>
-                    <div className="text-center mt-2">
+        <div className="bg-blue-50 h-screen flex flex-col items-center justify-center">
+    
+            {IsLoginOrRegister === 'register' ? (
+                <RegisterForm setRegisterUsername={setLoggedInUsername} setId={setId} />
+            ): (
+                <LoginForm setLoggedInUsername={setLoggedInUsername} setId={setId}/>
+            )}
+            <div className="text-center">
                     {IsLoginOrRegister === 'register' && (
                         <div>
                             Already a member?  
@@ -36,6 +52,7 @@ export default function RegisterAndLoginForm(){
                             </button>
                         </div>
                     )}
+                    
                     {IsLoginOrRegister === 'login' && (
                         <div>
                             Don't have an account?  
@@ -44,9 +61,7 @@ export default function RegisterAndLoginForm(){
                             </button>
                         </div>
                     )}
-
                 </div>
-            </form>
 
         </div>
     )

@@ -36,13 +36,13 @@ app.post('/register', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     const hashPassword = bcrypt.hashSync(password, salt)
-    console.log("1here")
+
     try {
       const createdUser: IUser = await UserModel.create({ 
         username: username, 
         password: hashPassword
       });
-      console.log("here")
+
       jwt.sign({ userId: createdUser._id, username }, jwtSecret, (err:any, token:string | undefined) => {
         if (err) throw err;
         res.cookie('token', token, {sameSite:'none', secure:true}).status(201).json({
@@ -105,11 +105,19 @@ app.get('/messageHistory/:userId', async (req: Request, res: Response) =>{
   const {userId} = req.params;
   const userData: IUserdata = await getUserDataFromRequest(req);
   const myUserId: string = userData.userId;
-  const messages = await MessageModel.find({
-    sender:{$in:[userId, myUserId]},
-    recipient:{$in:[userId, myUserId]}
-  }).sort({createdAt:1})
-  res.json(messages)
+  console.log("Selected chat: " + userId)
+  console.log(myUserId)
+  try {
+    const messages = await MessageModel.find({
+      sender:{$in:[userId, myUserId]},
+      recipient:{$in:[userId, myUserId]}
+    }).sort({createdAt:1})
+    console.log(messages)
+    res.json(messages)
+    
+  } catch (error) {
+    res.status(500).json({error: error})
+  }
 })
 
 app.get('/people', async (req: Request, res: Response) =>{

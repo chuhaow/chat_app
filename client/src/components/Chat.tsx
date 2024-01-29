@@ -115,6 +115,7 @@ export default function Chat(){
     }, [messages])
 
     useEffect( () =>{
+        console.log(selectedChat)
         if(selectedChat){
             axios.get(`/messageHistory/${selectedChat}`).then( res =>{
                 const {data} = res;
@@ -136,7 +137,7 @@ export default function Chat(){
                 offlinePeopleSet[p._id] = p;
             })
             console.log(offlinePeopleSet)
-            setOfflinePeople(offlinePeople)
+            setOfflinePeople(offlinePeopleSet)
         })
         
     }, [onlinePeople])

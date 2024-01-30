@@ -12,6 +12,7 @@ import { IConnectionData } from './interfaces/IConnectionData';
 import { IMessageData as IMessagePackage } from './interfaces/IMessageData';
 import MessageModel from './models/Message';
 import UniqueConnectionSet from './Helper/UniqueConnectionSet';
+import fs from 'fs'
 dotenv.config();
 
 mongoose.connect(process.env.MONGO_CONNECTION_STRING || "");
@@ -200,7 +201,17 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
     }else{
       try{
         const messageData: IMessagePackage = JSON.parse(message.data);
-        console.log(messageData);
+        if(messageData.file){
+          const parts:string[] = messageData.file.info.split('.')
+          const extension:string = parts[parts.length-1]
+          const filename: string = Date.now() + '.'+extension
+          const path: string = __dirname + '/Uploads/' + filename
+          const bufferData = Buffer.alloc(Buffer.from(messageData.file.data as string, 'base64').length);
+          Buffer.from(messageData.file.data as string, 'base64').copy(bufferData);
+          fs.writeFile(path, bufferData, () =>{
+            console.log('file saved: ' + path)
+          })
+        }
     
         if (messageData.recipient && messageData.text) {
           const messageDoc = await MessageModel.create({

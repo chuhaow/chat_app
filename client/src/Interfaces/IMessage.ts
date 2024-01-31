@@ -5,5 +5,5 @@ export default interface IMessage {
     text: string;
     sender: string | null;
     recipient: string | null;
-    file: IFile | null
+    file: IFile | null | string
   }

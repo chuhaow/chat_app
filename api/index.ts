@@ -13,6 +13,7 @@ import { IMessageData as IMessagePackage } from './interfaces/IMessageData';
 import MessageModel from './models/Message';
 import UniqueConnectionSet from './Helper/UniqueConnectionSet';
 import fs from 'fs'
+import * as crypto from 'crypto';
 dotenv.config();
 
 mongoose.connect(process.env.MONGO_CONNECTION_STRING || "");
@@ -24,6 +25,7 @@ app.use(cors({
     credentials: true,
     origin: process.env.CLIENT_URL
 }));
+app.use('/uploads', express.static(__dirname + '/uploads'))
 app.use(express.json());
 app.use(cookieParser());
 const salt = bcrypt.genSaltSync(10);
@@ -171,13 +173,6 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
     }
   }
 
-  // connection.addEventListener('message', (message: MessageEvent) =>{
-  //     const messageStr: string = message.data;
-  //     console.log(messageStr)
-  //     if(messageStr === 'pong'){
-  //       console.log("Still Alive")
-  //     } 
-  // } ) 
   connection.isAlive = true;
 
   const pingInterval = setInterval( () => {
@@ -197,14 +192,15 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
 
     if(messageStr === 'pong'){
       clearTimeout(connection.deathTimer);
-      //console.log("Still Alive")
     }else{
       try{
         const messageData: IMessagePackage = JSON.parse(message.data);
+        let filename:string | null = null;
         if(messageData.file){
           const parts:string[] = messageData.file.info.split('.')
           const extension:string = parts[parts.length-1]
-          const filename: string = Date.now() + '.'+extension
+          const senderAndReceiverId = messageData.sender + messageData.recipient
+          filename = senderAndReceiverId + '_'+ messageData.file.info
           const path: string = __dirname + '/Uploads/' + filename
           const bufferData = Buffer.alloc(Buffer.from(messageData.file.data as string, 'base64').length);
           Buffer.from(messageData.file.data as string, 'base64').copy(bufferData);
@@ -212,15 +208,16 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             console.log('file saved: ' + path)
           })
         }
-    
-        if (messageData.recipient && messageData.text) {
+        console.log(messageData)
+        if (messageData.recipient && (messageData.text || messageData.file)) {
           const messageDoc = await MessageModel.create({
             sender:connection._id,
             recipient: messageData.recipient,
-            text: messageData.text
+            text: messageData.text,
+            file: messageData.file ? filename : null
           });
     
-          console.log(messageDoc)
+          console.log("creating message")
           const recipientConnections = [...wss.clients].filter(
             (c) => (c as unknown as IConnectionData)._id === messageData.recipient
           );
@@ -229,6 +226,7 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             text: messageData.text,
             sender: connection._id,
             recipient: messageData.recipient,
+            file: messageData.file ,
             _id: messageDoc._id,
           })));
         }
@@ -262,4 +260,13 @@ function broadcastOnlineStatus() {
   activeConnections.forEach((client) => {
     client.send(JSON.stringify({ online: onlineStatus }));
   });
+}
+
+function hashAlphaNumericIds(id1: string, id2: string): string {
+  const concatenatedIds = [id1, id2].sort().join('');
+
+  const hash = crypto.createHash('sha256');
+  hash.update(concatenatedIds);
+
+  return hash.digest('hex');
 }

@@ -10,7 +10,8 @@ import axios from "axios";
 import WebSocketManager from "./WebSocketManager";
 import Contact from "./Contact";
 import IFile from "../Interfaces/IFile";
-
+import * as crypto from 'crypto';
+import DummyValue from "../Interfaces/IDummyValue";
 
 export default function Chat(){
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: IUserData}>({});
@@ -21,7 +22,7 @@ export default function Chat(){
     const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
     const messageBoxRef = useRef<HTMLDivElement>(null)
     const webSocketManagerRef = useRef<WebSocketManager | null>(null);
-    
+    const fileInputRef = useRef<HTMLInputElement | DummyValue>({ value: '' });
 
     useEffect(() =>{
         //connectToWs()
@@ -58,7 +59,7 @@ export default function Chat(){
             sender: textMessage.sender, 
             text:textMessage.text, 
             recipient: textMessage.recipient,
-            file: null }]));
+            file: textMessage.file }]));
     }
 
     function showOnline(people: IUserData[]){
@@ -89,14 +90,25 @@ export default function Chat(){
             }
         )
         setTextMessage("");
-        // Temp: Message sent won't have ids
-        // Set Messages should rely on server to get messages
-        setMessages(prev => ([...prev,{
+
+        if(file){
+            axios.get(`/messageHistory/${selectedChat}`).then( res =>{
+                //Todo: Update to get target api for just latest message
+                const {data} = res;
+                console.log(data)
+                setMessages(data)
+            })
+        }else{
+            // Temp: Message sent won't have ids
+            // Set Messages should rely on server to get messages
+            setMessages(prev => ([...prev,{
             _id: Date.now().toString(), 
             sender: id, 
             text: newTextMessage, 
             recipient: selectedChat,
             file: file} ]));
+        }
+
         
 
         
@@ -121,10 +133,15 @@ export default function Chat(){
                     data: reader.result
                 })
             }
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
         
 
     }
+    //Move this to a util class
+
 
     useEffect(() =>{
         const div = messageBoxRef.current;
@@ -210,6 +227,16 @@ export default function Chat(){
                                     <div className={` ${message.sender === id ? 'text-right' : 'text-left'}`}>
                                         <div className={`text-left inline-block p-2 m-2 rounded-md text-sm ${message.sender === id ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
                                             {message.text}
+                                            {message.file &&(
+                                                <div >
+                                                    <a target="_blank" className="underline flex items-center gap-1" href={axios.defaults.baseURL + '/uploads/' + message.file as string }>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                                        </svg>
+                                                        {message.file as string}
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     
@@ -228,7 +255,7 @@ export default function Chat(){
                         <button type="submit" className="bg-blue-500 p-2 text-white rounded-sm">Send</button>
 
                         <label className="bg-gray-200 p-2 rounded-sm border border-gray-200 cursor-pointer">
-                            <input type="file" className="hidden" onChange={sendFile}></input>
+                            <input type="file" className="hidden"  ref ={fileInputRef as React.RefObject<HTMLInputElement>} onChange={sendFile}></input>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
                             </svg>

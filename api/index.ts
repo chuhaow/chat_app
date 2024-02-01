@@ -196,6 +196,7 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
       try{
         const messageData: IMessagePackage = JSON.parse(message.data);
         let filename:string | null = null;
+        
         if(messageData.file){
           const parts:string[] = messageData.file.info.split('.')
           const extension:string = parts[parts.length-1]
@@ -229,6 +230,8 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             file: messageData.file ,
             _id: messageDoc._id,
           })));
+
+          console.log(Date.now())
         }
       }catch(error){
         console.error("Error parsing JSON:", error);

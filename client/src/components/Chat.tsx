@@ -92,12 +92,16 @@ export default function Chat(){
         setTextMessage("");
 
         if(file){
-            axios.get(`/messageHistory/${selectedChat}`).then( res =>{
-                //Todo: Update to get target api for just latest message
-                const {data} = res;
-                console.log(data)
-                setMessages(data)
-            })
+            setTimeout(() =>{
+                axios.get(`/messageHistory/${selectedChat}`).then( res =>{
+                    //Todo: Update to get target api for just latest message
+                    const {data} = res;
+                    console.log(data)
+                    console.log(Date.now());
+                    setMessages(data)
+                })
+            }, 100)
+            
         }else{
             // Temp: Message sent won't have ids
             // Set Messages should rely on server to get messages
@@ -108,9 +112,6 @@ export default function Chat(){
             recipient: selectedChat,
             file: file} ]));
         }
-
-        
-
         
     }
     function logout(){
@@ -127,13 +128,14 @@ export default function Chat(){
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () =>{
-                reader.result
                 sendMessage(null,{
                     info: file.name,
                     data: reader.result
                 })
             }
+            console.log(fileInputRef.current)
             if (fileInputRef.current) {
+                console.log("Resetting file")
                 fileInputRef.current.value = '';
             }
         }

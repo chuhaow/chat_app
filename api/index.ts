@@ -203,11 +203,17 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
           const senderAndReceiverId = messageData.sender + messageData.recipient
           filename = senderAndReceiverId + '_'+ messageData.file.info
           const path: string = __dirname + '/Uploads/' + filename
-          const bufferData = Buffer.alloc(Buffer.from(messageData.file.data as string, 'base64').length);
-          Buffer.from(messageData.file.data as string, 'base64').copy(bufferData);
-          fs.writeFile(path, bufferData, () =>{
+          const fileData: string[] = (messageData.file.data as string).split(',')
+          console.log(fileData[fileData.length-1]);
+          const bufferData = Buffer.from(fileData[fileData.length-1],'base64');
+          fs.promises.writeFile(path,bufferData)
+          .then( () => {
             console.log('file saved: ' + path)
           })
+          .catch( (error) =>{
+            console.error('Error saving file:', error)
+          })
+          
         }
         console.log(messageData)
         if (messageData.recipient && (messageData.text || messageData.file)) {

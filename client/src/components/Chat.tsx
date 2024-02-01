@@ -54,12 +54,15 @@ export default function Chat(){
       
     function handleTextMessage(textMessage: IMessage) {
         console.log(textMessage);
-        setMessages((prev) => ([...prev, {
-            _id: textMessage._id, 
-            sender: textMessage.sender, 
-            text:textMessage.text, 
-            recipient: textMessage.recipient,
-            file: textMessage.file }]));
+        if(textMessage.sender === selectedChat){
+            setMessages((prev) => ([...prev, {
+                _id: textMessage._id, 
+                sender: textMessage.sender, 
+                text:textMessage.text, 
+                recipient: textMessage.recipient,
+                file: textMessage.file }]));
+        }
+        
     }
 
     function showOnline(people: IUserData[]){

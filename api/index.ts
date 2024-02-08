@@ -221,19 +221,19 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             sender:connection._id,
             recipient: messageData.recipient,
             text: messageData.text,
-            file: messageData.file ? filename : null
+            filename: messageData.file ? messageData.file.info : null
           });
     
           console.log("creating message")
           const recipientConnections = [...wss.clients].filter(
-            (c) => (c as unknown as IConnectionData)._id === messageData.recipient
+            (c) => (c as unknown as IConnectionData)._id === messageData.recipient || (c as unknown as IConnectionData)._id === messageData.sender
           );
     
           recipientConnections.forEach((c) => c.send(JSON.stringify({
             text: messageData.text,
             sender: connection._id,
             recipient: messageData.recipient,
-            file: messageData.file ,
+            filename: messageData.file ? messageData.file.info : null,
             _id: messageDoc._id,
           })));
 

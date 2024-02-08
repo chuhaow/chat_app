@@ -1,16 +1,17 @@
 import { useEffect, useRef } from "react";
 import IMessage from "../Interfaces/IMessage";
 import IOnlineMessage from "../Interfaces/IOnlineMessage";
+import IServerMessageData from "../Interfaces/IServerMessageData";
 
 interface WebSocketManagerProps {
-  onMessageReceived: (message: IMessage | IOnlineMessage) => void;
+  onMessageReceived: (message: IServerMessageData | IOnlineMessage) => void;
 }
 
-type WebSocketMessage = IMessage | IOnlineMessage;
+type WebSocketMessage = IServerMessageData | IOnlineMessage;
 
 class WebSocketManager {
   private ws: WebSocket | null = null;
-  private onMessageReceived: (message: IMessage | IOnlineMessage) => void;
+  private onMessageReceived: (message: IServerMessageData | IOnlineMessage) => void;
 
   constructor(props: WebSocketManagerProps) {
     this.onMessageReceived = props.onMessageReceived;
@@ -42,6 +43,7 @@ class WebSocketManager {
         return;
       }else{
         const messageData: WebSocketMessage = JSON.parse(e.data);
+        console.log("Got a message")
         this.onMessageReceived(messageData);
       }
 
@@ -53,6 +55,7 @@ class WebSocketManager {
   sendMessage(message: IMessage) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+      console.log("Message sent")
     } else {
       console.error("WebSocket connection is not open. Message not sent.");
     }

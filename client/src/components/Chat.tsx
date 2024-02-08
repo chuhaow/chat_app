@@ -12,12 +12,14 @@ import Contact from "./Contact";
 import IFile from "../Interfaces/IFile";
 import * as crypto from 'crypto';
 import DummyValue from "../Interfaces/IDummyValue";
+import { info } from "console";
+import IServerMessageData from "../Interfaces/IServerMessageData";
 
 export default function Chat(){
     const [onlinePeople, setOnlinePeople] = useState<{[userId: string]: IUserData}>({});
     const [selectedChat, setSelectedChat] = useState<string | null>(null)
     const [newTextMessage, setTextMessage] = useState<string>("");
-    const [messages, setMessages] = useState<IMessage[]>([])
+    const [messages, setMessages] = useState<IServerMessageData[]>([])
     const [offlinePeople, setOfflinePeople] = useState<{[userId: string]: IUserData}>({});
     const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
     const messageBoxRef = useRef<HTMLDivElement>(null)
@@ -33,14 +35,15 @@ export default function Chat(){
 
 
     //ws?.addEventListener('message', handleMessage)
-    function handleMessage(messageData: IMessage | IOnlineMessage){
+    function handleMessage(messageData: IServerMessageData | IOnlineMessage){
         try{
             //const messageData: WebSocketMessage = JSON.parse(e.data);
 
             if('online' in messageData){
                 handleOnlineMessage(messageData as IOnlineMessage);
             }else{
-                handleTextMessage(messageData as IMessage);
+                
+                handleTextMessage(messageData as IServerMessageData);
             }
         }catch(error){
             console.error("Error parsing message: ", error);
@@ -52,15 +55,15 @@ export default function Chat(){
         console.log(onlineMessage.online.filter(value => Object.keys(value).length !== 0))
     }
       
-    function handleTextMessage(textMessage: IMessage) {
+    function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
-        if(textMessage.sender === selectedChat){
+        if(textMessage.recipient === id || textMessage.sender === id ){
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
                 sender: textMessage.sender, 
                 text:textMessage.text, 
                 recipient: textMessage.recipient,
-                file: textMessage.file }]));
+                filename: textMessage.filename }]));
         }
         
     }
@@ -85,7 +88,7 @@ export default function Chat(){
         console.log("sending")
         webSocketManagerRef.current?.sendMessage(
             {
-                _id: Date.now().toString(),
+                _id: Date.now().toString(), // This is temp data, it get replaced by the actual id in the backend
                 text: newTextMessage,
                 sender: id as string,
                 recipient: selectedChat as string,
@@ -94,27 +97,25 @@ export default function Chat(){
         )
         setTextMessage("");
 
-        if(file){
-            setTimeout(() =>{
-                axios.get(`/messageHistory/${selectedChat}`).then( res =>{
-                    //Todo: Update to get target api for just latest message
-                    const {data} = res;
-                    console.log(data)
-                    console.log(Date.now());
-                    setMessages(data)
-                })
-            }, 100)
+        // if(file){
+        //     setTimeout(() =>{
+        //         axios.get(`/messageHistory/${selectedChat}`).then( res =>{
+        //             //Todo: Update to get target api for just latest message
+        //             const {data} = res;
+        //             setMessages(data)
+        //         })
+        //     }, 100)
             
-        }else{
-            // Temp: Message sent won't have ids
-            // Set Messages should rely on server to get messages
-            setMessages(prev => ([...prev,{
-            _id: Date.now().toString(), 
-            sender: id as string, 
-            text: newTextMessage, 
-            recipient: selectedChat as string,
-            file: file} ]));
-        }
+        // }else{
+        //     // Temp: Message sent won't have ids
+        //     // Set Messages should rely on server to get messages
+        //     // setMessages(prev => ([...prev,{
+        //     // _id: Date.now().toString(), 
+        //     // sender: id as string, 
+        //     // text: newTextMessage, 
+        //     // recipient: selectedChat as string,
+        //     // file: file} ]));
+        // }
         
     }
     function logout(){
@@ -185,8 +186,8 @@ export default function Chat(){
         
     }, [onlinePeople])
 
-    const messagesWithoutDups: IMessage[] = uniqBy(messages, '_id')
-    console.log(messagesWithoutDups)
+    const messagesWithoutDups: IServerMessageData[] = uniqBy(messages, '_id')
+    //console.log(messagesWithoutDups)
     return(
         
         <div className="flex h-screen">
@@ -232,13 +233,13 @@ export default function Chat(){
                                     <div className={` ${message.sender === id ? 'text-right' : 'text-left'}`}>
                                         <div className={`text-left inline-block p-2 m-2 rounded-md text-sm ${message.sender === id ? 'bg-blue-500 text-white' : 'bg-white text-gray-500'}`}>
                                             {message.text}
-                                            {message.file &&(
+                                            {message.filename &&(
                                                 <div >
-                                                    <a target="_blank" className="underline flex items-center gap-1" href={axios.defaults.baseURL + '/uploads/' + message.file as string }>
+                                                    <a target="_blank" className="underline flex items-center gap-1" href={axios.defaults.baseURL + '/uploads/' + message.sender + message.recipient + "_" + message.filename as string }>
                                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
                                                         </svg>
-                                                        {(message.file as string).replace(message.sender + message.recipient + '_', '')}
+                                                        {(message.filename)}
                                                     </a>
                                                 </div>
                                             )}

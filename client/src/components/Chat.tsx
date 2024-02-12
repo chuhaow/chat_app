@@ -31,6 +31,19 @@ export default function Chat(){
         const manager = new WebSocketManager({onMessageReceived: handleMessage});
         webSocketManagerRef.current = manager;
 
+        const handleStorageChange = (event: StorageEvent): void => {
+            if (event.key === 'logoutEvent') {
+                logout();
+                window.removeEventListener('storage', handleStorageChange);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+
     }, [])
 
 
@@ -124,6 +137,7 @@ export default function Chat(){
             setLoggedInUsername(null);
             webSocketManagerRef.current?.cleanup();
         })
+        localStorage.setItem('logoutEvent', Date.now().toString());
     }
     function sendFile(ev: ChangeEvent<HTMLInputElement>){
         console.log(ev.target.files)
@@ -214,8 +228,8 @@ export default function Chat(){
                 <div className="p-2 text-center">
                     <span className="mr-2 text-sm text-gray-600">Welcome {username}</span>
                     <button 
-                    onClick={logout}
-                    className="text-sm bg-blue-100 py-1 px-2 text-gray-500 border rounded-sm">Logout</button>
+                        onClick={logout}
+                        className="text-sm bg-blue-100 py-1 px-2 text-gray-500 border rounded-sm">Logout</button>
                     </div>
 
             </div>

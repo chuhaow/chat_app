@@ -8,11 +8,11 @@ class UniqueConnectionSet {
     }
   
     add(connection: IConnectionData & WebSocket) {
-      this.connectionsMap.set(connection._id, connection);
+      this.connectionsMap.set(connection.connectionId, connection);
     }
   
     delete(connection: IConnectionData & WebSocket) {
-      this.connectionsMap.delete(connection._id);
+      this.connectionsMap.delete(connection.connectionId);
     }
   
     forEach(callbackfn: (value: IConnectionData & WebSocket, key: string, map: Map<string, IConnectionData & WebSocket>) => void) {

@@ -6,14 +6,13 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import ws from 'ws';
-import UserModel, { IUser } from './models/User'; // Make sure to replace 'User' with the actual model file and interface
+import UserModel, { IUser } from './models/User'; 
 import { IUserdata } from './interfaces/IUserdata';
-import { IConnectionData } from './interfaces/IConnectionData';
+import { IConnectionData, generateConnectionId } from './interfaces/IConnectionData';
 import { IMessageData as IMessagePackage } from './interfaces/IMessageData';
 import MessageModel from './models/Message';
 import UniqueConnectionSet from './Helper/UniqueConnectionSet';
 import fs from 'fs'
-import * as crypto from 'crypto';
 dotenv.config();
 
 mongoose.connect(process.env.MONGO_CONNECTION_STRING || "");
@@ -166,6 +165,7 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             const { userId, username } = userdata as IUserdata;
             connection._id = userId;
             connection.username = username;
+            connection.connectionId = generateConnectionId(userId, token)
             activeConnections.add(connection);
           }
         });
@@ -199,12 +199,12 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
         
         if(messageData.file){
           const parts:string[] = messageData.file.info.split('.')
-          const extension:string = parts[parts.length-1]
+
           const senderAndReceiverId = messageData.sender + messageData.recipient
           filename = senderAndReceiverId + '_'+ messageData.file.info
           const path: string = __dirname + '/Uploads/' + filename
           const fileData: string[] = (messageData.file.data as string).split(',')
-          console.log(fileData[fileData.length-1]);
+
           const bufferData = Buffer.from(fileData[fileData.length-1],'base64');
           fs.promises.writeFile(path,bufferData)
           .then( () => {
@@ -215,7 +215,7 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
           })
           
         }
-        console.log(messageData)
+
         if (messageData.recipient && (messageData.text || messageData.file)) {
           const messageDoc = await MessageModel.create({
             sender:connection._id,
@@ -237,7 +237,6 @@ wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => 
             _id: messageDoc._id,
           })));
 
-          console.log(Date.now())
         }
       }catch(error){
         console.error("Error parsing JSON:", error);
@@ -271,11 +270,3 @@ function broadcastOnlineStatus() {
   });
 }
 
-function hashAlphaNumericIds(id1: string, id2: string): string {
-  const concatenatedIds = [id1, id2].sort().join('');
-
-  const hash = crypto.createHash('sha256');
-  hash.update(concatenatedIds);
-
-  return hash.digest('hex');
-}

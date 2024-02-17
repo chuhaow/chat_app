@@ -14,7 +14,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({setRegisterUsername, setId})
     const handleSubmit = async (ev: React.FormEvent<HTMLFormElement>): Promise<void> =>{
         ev.preventDefault();
         try{
-            const {data} = await axios.post('/register', {username,password});
+            const {data} = await axios.post('auth/register', {username,password});
             setRegisterUsername(username)
             setId(data.id);
         }catch (error){
@@ -25,6 +25,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({setRegisterUsername, setId})
                     setError("Username already exists");
                 }else{
                     setError('An error has occurred. Please try again later.');
+                    console.log(axiosError.response)
                 }
             }else{
                 setError("An unexpected error occurred")

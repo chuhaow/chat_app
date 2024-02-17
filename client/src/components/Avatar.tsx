@@ -9,7 +9,7 @@ export default function Avatar({ online ,userId, username }: { online: boolean ;
         'bg-pink-200',
         'bg-teal-200'
       ];
-    const userIdBase10: number = parseInt(userId, 16);
+    const userIdBase10: number = parseInt(userId+username, 16) / 1000000000000;
     const color = backgroundColors[userIdBase10 % backgroundColors.length];
     return (
         <div className={`w-8 h-8 rounded-full flex items-center relative ${color}`}>

@@ -132,7 +132,7 @@ export default function Chat(){
         
     }
     function logout(){
-        axios.post('/logout').then( () =>{
+        axios.post('auth/logout').then( () =>{
             setId(null);
             setLoggedInUsername(null);
             webSocketManagerRef.current?.cleanup();
@@ -175,7 +175,7 @@ export default function Chat(){
     useEffect( () =>{
         console.log(selectedChat)
         if(selectedChat){
-            axios.get(`/messageHistory/${selectedChat}`).then( res =>{
+            axios.get(`/messages/history/${selectedChat}`).then( res =>{
                 const {data} = res;
                 console.log(res)
                 setMessages(data)
@@ -185,7 +185,7 @@ export default function Chat(){
     }, [selectedChat])
 
     useEffect( () =>{
-        axios.get('/people').then(res =>{
+        axios.get('/user/').then(res =>{
             const offlinePeople = res.data.
             filter( (p: { _id: string | null; }) => p._id !== id)
             .filter( (p: { _id: string; }) => !Object.keys( onlinePeople).includes(p._id));

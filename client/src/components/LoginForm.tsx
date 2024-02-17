@@ -14,7 +14,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ setLoggedInUsername, setId }) => 
   const handleSubmit = async (ev: React.FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     try {
-      const { data } = await axios.post('/login', { username, password });
+      const { data } = await axios.post('auth/login', { username, password });
       setLoggedInUsername(username);
       setId(data.id);
     } catch (error) {

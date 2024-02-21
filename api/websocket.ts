@@ -20,17 +20,21 @@ export default function WebSocketServerSetUp(server: any){
         if (tokenString) {
           const token = tokenString.split('=')[1];
           if (token) {
-            jwt.verify(token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) => {
-              if (err) throw err;
-              if (userdata) {
-                console.log('Setting user data');
-                const { userId, username } = userdata as IUserdata;
-                connection._id = userId;
-                connection.username = username;
-                connection.connectionId = generateConnectionId(userId, token)
-                activeConnections.add(connection);
-              }
-            });
+            try{
+              jwt.verify(token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) => {
+                if (err) throw err;
+                if (userdata) {
+                  console.log('Setting user data');
+                  const { userId, username } = userdata as IUserdata;
+                  connection._id = userId;
+                  connection.username = username;
+                  connection.connectionId = generateConnectionId(userId, token)
+                  activeConnections.add(connection);
+                }
+              });
+            }catch(error){
+              console.error(error)
+            }
           }
         }
       }

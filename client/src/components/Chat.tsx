@@ -22,6 +22,8 @@ export default function Chat(){
     const [messages, setMessages] = useState<IServerMessageData[]>([])
     const [offlinePeople, setOfflinePeople] = useState<{[userId: string]: IUserData}>({});
     const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
+    const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: Set<string> }>({});
+
     const messageBoxRef = useRef<HTMLDivElement>(null)
     const webSocketManagerRef = useRef<WebSocketManager | null>(null);
     const fileInputRef = useRef<HTMLInputElement | DummyValue>({ value: '' });
@@ -70,7 +72,8 @@ export default function Chat(){
       
     function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
-        if(textMessage.recipient === id || textMessage.sender === id ){
+        
+        if(textMessage.sender === selectedChat || textMessage.sender === id ){
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
                 sender: textMessage.sender, 
@@ -78,7 +81,11 @@ export default function Chat(){
                 recipient: textMessage.recipient,
                 filename: textMessage.filename }]));
         }
+        const messageExists = messages.some(message => message._id === textMessage._id);
         
+        if (textMessage.sender !== selectedChat && !messageExists) {
+            updateUnreadCount(textMessage.sender, textMessage._id);
+        }
     }
 
     function showOnline(people: IUserData[]){
@@ -109,28 +116,9 @@ export default function Chat(){
             }
         )
         setTextMessage("");
-
-        // if(file){
-        //     setTimeout(() =>{
-        //         axios.get(`/messageHistory/${selectedChat}`).then( res =>{
-        //             //Todo: Update to get target api for just latest message
-        //             const {data} = res;
-        //             setMessages(data)
-        //         })
-        //     }, 100)
-            
-        // }else{
-        //     // Temp: Message sent won't have ids
-        //     // Set Messages should rely on server to get messages
-        //     // setMessages(prev => ([...prev,{
-        //     // _id: Date.now().toString(), 
-        //     // sender: id as string, 
-        //     // text: newTextMessage, 
-        //     // recipient: selectedChat as string,
-        //     // file: file} ]));
-        // }
         
     }
+
     function logout(){
         axios.post('auth/logout').then( () =>{
             setId(null);
@@ -139,6 +127,7 @@ export default function Chat(){
         })
         localStorage.setItem('logoutEvent', Date.now().toString());
     }
+
     function sendFile(ev: ChangeEvent<HTMLInputElement>){
         console.log(ev.target.files)
         const file = ev.target?.files?.[0]
@@ -157,11 +146,26 @@ export default function Chat(){
                 fileInputRef.current.value = '';
             }
         }
-        
-
     }
-    //Move this to a util class
 
+    function updateUnreadCount(chatId: string, messageId: string) {
+        setUnreadCounts(prevCounts => {
+            const newCounts = { ...prevCounts };
+            if (!newCounts[chatId]) {
+                newCounts[chatId] = new Set();
+            }
+            newCounts[chatId].add(messageId);
+            return newCounts;
+        });
+    }
+
+    function resetUnreadCount(chatId: string) {
+        setUnreadCounts(prevCounts => {
+            const newCounts = { ...prevCounts };
+            delete newCounts[chatId];
+            return newCounts;
+        });
+    }
 
     useEffect(() =>{
         const div = messageBoxRef.current;
@@ -212,17 +216,21 @@ export default function Chat(){
                         <Contact 
                         username={onlinePeople[userId].username} 
                         id={userId}
-                        onClick={ () => setSelectedChat(userId)}
+                        onClick={ () => {setSelectedChat(userId);
+                            resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
-                        online={true}/>
+                        online={true}
+                        notificationCount={(unreadCounts[userId] || new Set()).size}/>
                     ))}
                     {Object.keys(offlinePeople).map(userId =>(
                         <Contact 
                         username={offlinePeople[userId].username} 
                         id={userId}
-                        onClick={ () => setSelectedChat(userId)}
+                        onClick={ () => {setSelectedChat(userId);
+                            resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
-                        online={false}/>
+                        online={false}
+                        notificationCount={(unreadCounts[userId] || new Set()).size}/>
                     ))}
                 </div>
                 <div className="p-2 text-center">

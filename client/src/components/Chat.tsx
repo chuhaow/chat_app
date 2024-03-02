@@ -22,7 +22,7 @@ export default function Chat(){
     const [messages, setMessages] = useState<IServerMessageData[]>([])
     const [offlinePeople, setOfflinePeople] = useState<{[userId: string]: IUserData}>({});
     const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
-    const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: Set<string> }>({});
+    const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: number }>({});
 
     const messageBoxRef = useRef<HTMLDivElement>(null)
     const webSocketManagerRef = useRef<WebSocketManager | null>(null);
@@ -39,7 +39,7 @@ export default function Chat(){
                 window.removeEventListener('storage', handleStorageChange);
             }
         };
-
+        //Update unread count for each chat 
         window.addEventListener('storage', handleStorageChange);
 
         return () => {
@@ -73,19 +73,29 @@ export default function Chat(){
     function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
         
-        if(textMessage.sender === selectedChat || textMessage.sender === id ){
+        if(textMessage.sender === selectedChat || textMessage.sender === id ){ // Check if the correct chat is open, if it is reset unreadCount
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
                 sender: textMessage.sender, 
                 text:textMessage.text, 
                 recipient: textMessage.recipient,
                 filename: textMessage.filename }]));
+    
+            
         }
-        const messageExists = messages.some(message => message._id === textMessage._id);
-        
-        if (textMessage.sender !== selectedChat && !messageExists) {
+        console.log(textMessage.sender !== selectedChat + "======================")
+        if (textMessage.sender !== selectedChat) {
+            console.log("updating Count")
             updateUnreadCount(textMessage.sender, textMessage._id);
         }
+        else{
+            if(selectedChat){
+                resetUnreadCount(selectedChat as string);
+            }
+        }
+       // const messageExists = messages.some(message => message._id === textMessage._id);
+        
+
     }
 
     function showOnline(people: IUserData[]){
@@ -149,22 +159,48 @@ export default function Chat(){
     }
 
     function updateUnreadCount(chatId: string, messageId: string) {
-        setUnreadCounts(prevCounts => {
-            const newCounts = { ...prevCounts };
-            if (!newCounts[chatId]) {
-                newCounts[chatId] = new Set();
-            }
-            newCounts[chatId].add(messageId);
-            return newCounts;
+        getUnreadCount(chatId).then(count => {
+            setUnreadCounts(prevUnreadCounts => ({
+                ...prevUnreadCounts,
+                [chatId]: count
+            }));
+        }).catch(error => {
+            console.error('Error updating unread count:', error);
         });
     }
+    
+
+    async function getUnreadCount(chatId: string): Promise<number> {
+        try {
+            const response = await axios.get(`/messages/unreadMessageCount/${id}/${chatId}`);
+            console.log('Unread message count:', response.data.unreadCount);
+            return response.data.unreadCount;
+        } catch (error) {
+            console.error('Error fetching unread message count:', error);
+            return 0;
+        }
+    }
+
 
     function resetUnreadCount(chatId: string) {
-        setUnreadCounts(prevCounts => {
-            const newCounts = { ...prevCounts };
-            delete newCounts[chatId];
-            return newCounts;
+
+        const requestData = {
+            userId: id,
+            selectedChatId: chatId,
+        };
+        axios.post('/messages/clearUnreadMessages', requestData)
+            .then(response => {
+
+            console.log('Unread messages cleared successfully:', response.data);
+          })
+          .catch(error => {
+
+            console.error('Error clearing unread messages:', error);
         });
+        setUnreadCounts(prevUnreadCounts => ({
+            ...prevUnreadCounts,
+            [chatId]: 0
+        }));
     }
 
     useEffect(() =>{
@@ -220,7 +256,7 @@ export default function Chat(){
                             resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
                         online={true}
-                        notificationCount={(unreadCounts[userId] || new Set()).size}/>
+                        notificationCount={(unreadCounts[userId] || 0)}/>
                     ))}
                     {Object.keys(offlinePeople).map(userId =>(
                         <Contact 
@@ -230,7 +266,7 @@ export default function Chat(){
                             resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
                         online={false}
-                        notificationCount={(unreadCounts[userId] || new Set()).size}/>
+                        notificationCount={(unreadCounts[userId] || 0)}/>
                     ))}
                 </div>
                 <div className="p-2 text-center">

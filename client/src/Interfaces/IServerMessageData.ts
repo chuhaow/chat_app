@@ -3,5 +3,5 @@ export default interface IServerMessageData {
     text: string;
     sender: string;
     recipient: string;
-    filename: string | null
+    filename: string | null;
 }

@@ -61,6 +61,10 @@ class WebSocketManager {
     }
   }
 
+  updateOnMessageReceived(callback: (message: IServerMessageData | IOnlineMessage) => void) {
+    this.onMessageReceived = callback;
+  }
+
   cleanup() {
     this.ws?.close();
   }

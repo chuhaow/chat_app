@@ -27,10 +27,8 @@ export default function Chat(){
     const fileInputRef = useRef<HTMLInputElement | DummyValue>({ value: '' });
 
     useEffect(() =>{
-        //connectToWs()
         const manager = new WebSocketManager({onMessageReceived: handleMessage});
         webSocketManagerRef.current = manager;
-
         const handleStorageChange = (event: StorageEvent): void => {
             if (event.key === 'logoutEvent') {
                 logout();
@@ -46,6 +44,16 @@ export default function Chat(){
 
     }, [])
 
+    useEffect(() =>{
+        //connectToWs()
+        if(webSocketManagerRef.current !== null){
+            webSocketManagerRef.current.updateOnMessageReceived(handleMessage)
+        }
+
+
+    }, [selectedChat])
+
+
 
     //ws?.addEventListener('message', handleMessage)
     function handleMessage(messageData: IServerMessageData | IOnlineMessage){
@@ -55,7 +63,7 @@ export default function Chat(){
             if('online' in messageData){
                 handleOnlineMessage(messageData as IOnlineMessage);
             }else{
-                
+                console.log(selectedChat)
                 handleTextMessage(messageData as IServerMessageData);
             }
         }catch(error){
@@ -70,7 +78,9 @@ export default function Chat(){
       
     function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
-        if(textMessage.recipient === id || textMessage.sender === id ){
+        console.log("selected: " + selectedChat);
+        console.log(" Sender: " + textMessage.sender)
+        if(textMessage.sender === selectedChat || textMessage.sender == id){
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
                 sender: textMessage.sender, 

@@ -5,3 +5,4 @@ A simple chat app created using the MERN stack
 - **User Authentication:** Secure login mechanisms to verify and authenticate users, ensuring privacy and data protection.
 - **Contact List:** A user-friendly interface displaying a list of contacts or friends, making it easy to initiate conversations.
 - **Multimedia Support:** Ability to send not only text messages but also multimedia content such as images, videos, and audio files.
+- **Notification of New Messages:** Displays the number of unread messages in each chat thread, indicating the presence of new messages since the user last viewed the conversation.

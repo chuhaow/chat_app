@@ -58,7 +58,7 @@ export default function WebSocketServerSetUp(server: any){
     
       connection.addEventListener('message', async (message: MessageEvent) => {
         const messageStr: string = message.data;
-    
+        
         if(messageStr === 'pong'){
           clearTimeout(connection.deathTimer);
         }else{
@@ -102,7 +102,6 @@ export default function WebSocketServerSetUp(server: any){
                 { _id: messageData.recipient },
                 { $inc: { [`unreadMessageCounts.${messageData.sender}`]: 1 } }
               );
-        
               recipientConnections.forEach((c) => c.send(JSON.stringify({
                 text: messageData.text,
                 sender: connection._id,

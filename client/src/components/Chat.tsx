@@ -1,18 +1,16 @@
 import { ChangeEvent, FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { uniqBy } from "lodash";
 
-import Avatar from "./Avatar";
+
 import { UserContext } from "./UserContext";
-import IMessage from "../Interfaces/IMessage"
+
 import IOnlineMessage from "../Interfaces/IOnlineMessage"
 import IUserData from "../Interfaces/IUserData";
 import axios from "axios";
 import WebSocketManager from "./WebSocketManager";
 import Contact from "./Contact";
 import IFile from "../Interfaces/IFile";
-import * as crypto from 'crypto';
 import DummyValue from "../Interfaces/IDummyValue";
-import { info } from "console";
 import IServerMessageData from "../Interfaces/IServerMessageData";
 
 export default function Chat(){
@@ -29,8 +27,12 @@ export default function Chat(){
     const fileInputRef = useRef<HTMLInputElement | DummyValue>({ value: '' });
 
     useEffect(() =>{
-        const manager = new WebSocketManager({onMessageReceived: handleMessage});
-        webSocketManagerRef.current = manager;
+
+        if(webSocketManagerRef.current === null){
+            const manager = new WebSocketManager({onMessageReceived: handleMessage});
+            webSocketManagerRef.current = manager;
+        }
+        
         const handleStorageChange = (event: StorageEvent): void => {
             if (event.key === 'logoutEvent') {
                 logout();
@@ -48,9 +50,9 @@ export default function Chat(){
 
     useEffect(() =>{
         //connectToWs()
-        if(webSocketManagerRef.current !== null){
-            webSocketManagerRef.current.updateOnMessageReceived(handleMessage)
-        }
+        console.log(webSocketManagerRef.current)
+        webSocketManagerRef.current?.updateOnMessageReceived(handleMessage)
+        
 
 
     }, [selectedChat])
@@ -80,8 +82,11 @@ export default function Chat(){
       
     function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
-        console.log("selected: " + selectedChat);
-        console.log(" Sender: " + textMessage.sender)
+
+
+        if (textMessage.sender !== selectedChat as string) {
+            updateUnreadCount(textMessage.sender, textMessage._id);
+        }
         if(textMessage.sender === selectedChat || textMessage.sender == id){
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
@@ -91,19 +96,7 @@ export default function Chat(){
                 filename: textMessage.filename }]));
     
             
-        }
-        console.log(textMessage.sender !== selectedChat + "======================")
-        if (textMessage.sender !== selectedChat) {
-            console.log("updating Count")
-            updateUnreadCount(textMessage.sender, textMessage._id);
-        }
-        else{
-            if(selectedChat){
-                resetUnreadCount(selectedChat as string);
-            }
-        }
-       // const messageExists = messages.some(message => message._id === textMessage._id);
-        
+        } 
 
     }
 

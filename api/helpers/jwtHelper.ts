@@ -5,7 +5,7 @@ import { Request } from "express";
 const jwtSecret = process.env.JWT_SECRET || '';
 
 export function generateToken(userId: string, username: string): string {
-  return jwt.sign({ userId, username }, jwtSecret, { expiresIn: '1h' });
+  return jwt.sign({ userId, username }, jwtSecret, { });
 }
 
 export async function getUserDataFromRequest(req:Request): Promise<IUserdata>{

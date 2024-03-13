@@ -1,18 +1,16 @@
 import { ChangeEvent, FormEvent, useContext, useEffect, useRef, useState } from "react";
 import { uniqBy } from "lodash";
 
-import Avatar from "./Avatar";
+
 import { UserContext } from "./UserContext";
-import IMessage from "../Interfaces/IMessage"
+
 import IOnlineMessage from "../Interfaces/IOnlineMessage"
 import IUserData from "../Interfaces/IUserData";
 import axios from "axios";
 import WebSocketManager from "./WebSocketManager";
 import Contact from "./Contact";
 import IFile from "../Interfaces/IFile";
-import * as crypto from 'crypto';
 import DummyValue from "../Interfaces/IDummyValue";
-import { info } from "console";
 import IServerMessageData from "../Interfaces/IServerMessageData";
 
 export default function Chat(){
@@ -22,20 +20,26 @@ export default function Chat(){
     const [messages, setMessages] = useState<IServerMessageData[]>([])
     const [offlinePeople, setOfflinePeople] = useState<{[userId: string]: IUserData}>({});
     const {username,id, setId, setLoggedInUsername} = useContext(UserContext)
+    const [unreadCounts, setUnreadCounts] = useState<{ [chatId: string]: number }>({});
+
     const messageBoxRef = useRef<HTMLDivElement>(null)
     const webSocketManagerRef = useRef<WebSocketManager | null>(null);
     const fileInputRef = useRef<HTMLInputElement | DummyValue>({ value: '' });
 
     useEffect(() =>{
-        const manager = new WebSocketManager({onMessageReceived: handleMessage});
-        webSocketManagerRef.current = manager;
+
+        if(webSocketManagerRef.current === null){
+            const manager = new WebSocketManager({onMessageReceived: handleMessage});
+            webSocketManagerRef.current = manager;
+        }
+        
         const handleStorageChange = (event: StorageEvent): void => {
             if (event.key === 'logoutEvent') {
                 logout();
                 window.removeEventListener('storage', handleStorageChange);
             }
         };
-
+        //Update unread count for each chat 
         window.addEventListener('storage', handleStorageChange);
 
         return () => {
@@ -46,9 +50,9 @@ export default function Chat(){
 
     useEffect(() =>{
         //connectToWs()
-        if(webSocketManagerRef.current !== null){
-            webSocketManagerRef.current.updateOnMessageReceived(handleMessage)
-        }
+        console.log(webSocketManagerRef.current)
+        webSocketManagerRef.current?.updateOnMessageReceived(handleMessage)
+        
 
 
     }, [selectedChat])
@@ -78,8 +82,11 @@ export default function Chat(){
       
     function handleTextMessage(textMessage: IServerMessageData) {
         console.log(textMessage);
-        console.log("selected: " + selectedChat);
-        console.log(" Sender: " + textMessage.sender)
+
+
+        if (textMessage.sender !== selectedChat as string) {
+            updateUnreadCount(textMessage.sender, textMessage._id);
+        }
         if(textMessage.sender === selectedChat || textMessage.sender == id){
             setMessages((prev) => ([...prev, {
                 _id: textMessage._id, 
@@ -87,8 +94,10 @@ export default function Chat(){
                 text:textMessage.text, 
                 recipient: textMessage.recipient,
                 filename: textMessage.filename }]));
-        }
-        
+    
+            
+        } 
+
     }
 
     function showOnline(people: IUserData[]){
@@ -119,28 +128,9 @@ export default function Chat(){
             }
         )
         setTextMessage("");
-
-        // if(file){
-        //     setTimeout(() =>{
-        //         axios.get(`/messageHistory/${selectedChat}`).then( res =>{
-        //             //Todo: Update to get target api for just latest message
-        //             const {data} = res;
-        //             setMessages(data)
-        //         })
-        //     }, 100)
-            
-        // }else{
-        //     // Temp: Message sent won't have ids
-        //     // Set Messages should rely on server to get messages
-        //     // setMessages(prev => ([...prev,{
-        //     // _id: Date.now().toString(), 
-        //     // sender: id as string, 
-        //     // text: newTextMessage, 
-        //     // recipient: selectedChat as string,
-        //     // file: file} ]));
-        // }
         
     }
+
     function logout(){
         axios.post('auth/logout').then( () =>{
             setId(null);
@@ -149,6 +139,7 @@ export default function Chat(){
         })
         localStorage.setItem('logoutEvent', Date.now().toString());
     }
+
     function sendFile(ev: ChangeEvent<HTMLInputElement>){
         console.log(ev.target.files)
         const file = ev.target?.files?.[0]
@@ -167,11 +158,52 @@ export default function Chat(){
                 fileInputRef.current.value = '';
             }
         }
-        
-
     }
-    //Move this to a util class
 
+    function updateUnreadCount(chatId: string, messageId: string) {
+        getUnreadCount(chatId).then(count => {
+            setUnreadCounts(prevUnreadCounts => ({
+                ...prevUnreadCounts,
+                [chatId]: count
+            }));
+        }).catch(error => {
+            console.error('Error updating unread count:', error);
+        });
+    }
+    
+
+    async function getUnreadCount(chatId: string): Promise<number> {
+        try {
+            const response = await axios.get(`/messages/unreadMessageCount/${id}/${chatId}`);
+            console.log('Unread message count:', response.data.unreadCount);
+            return response.data.unreadCount;
+        } catch (error) {
+            console.error('Error fetching unread message count:', error);
+            return 0;
+        }
+    }
+
+
+    function resetUnreadCount(chatId: string) {
+
+        const requestData = {
+            userId: id,
+            selectedChatId: chatId,
+        };
+        axios.post('/messages/clearUnreadMessages', requestData)
+            .then(response => {
+
+            console.log('Unread messages cleared successfully:', response.data);
+          })
+          .catch(error => {
+
+            console.error('Error clearing unread messages:', error);
+        });
+        setUnreadCounts(prevUnreadCounts => ({
+            ...prevUnreadCounts,
+            [chatId]: 0
+        }));
+    }
 
     useEffect(() =>{
         const div = messageBoxRef.current;
@@ -222,17 +254,21 @@ export default function Chat(){
                         <Contact 
                         username={onlinePeople[userId].username} 
                         id={userId}
-                        onClick={ () => setSelectedChat(userId)}
+                        onClick={ () => {setSelectedChat(userId);
+                            resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
-                        online={true}/>
+                        online={true}
+                        notificationCount={(unreadCounts[userId] || 0)}/>
                     ))}
                     {Object.keys(offlinePeople).map(userId =>(
                         <Contact 
                         username={offlinePeople[userId].username} 
                         id={userId}
-                        onClick={ () => setSelectedChat(userId)}
+                        onClick={ () => {setSelectedChat(userId);
+                            resetUnreadCount(userId);}}
                         selectedUserId={selectedChat}
-                        online={false}/>
+                        online={false}
+                        notificationCount={(unreadCounts[userId] || 0)}/>
                     ))}
                 </div>
                 <div className="p-2 text-center">

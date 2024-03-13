@@ -7,9 +7,12 @@ import { IConnectionData, generateConnectionId } from './interfaces/IConnectionD
 import UniqueConnectionSet from './helpers/UniqueConnectionSet';
 import MessageModel from './models/Message';
 import fs from 'fs'
+import UserModel from './models/User';
 
 const jwtSecret = process.env.JWT_SECRET || '';
 const activeConnections = new UniqueConnectionSet();
+// Messages should contain a read status
+// When client gets a list of message such as when onload, it can count all messages with unread tag and update count
 export default function WebSocketServerSetUp(server: any){
     const wss = new ws.WebSocketServer({ server });
     wss.on('connection', (connection: IConnectionData & WebSocket, req: Request) => {
@@ -20,17 +23,21 @@ export default function WebSocketServerSetUp(server: any){
         if (tokenString) {
           const token = tokenString.split('=')[1];
           if (token) {
-            jwt.verify(token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) => {
-              if (err) throw err;
-              if (userdata) {
-                console.log('Setting user data');
-                const { userId, username } = userdata as IUserdata;
-                connection._id = userId;
-                connection.username = username;
-                connection.connectionId = generateConnectionId(userId, token)
-                activeConnections.add(connection);
-              }
-            });
+            try{
+              jwt.verify(token, jwtSecret, {}, (err: jwt.VerifyErrors | null, userdata: string | jwt.JwtPayload | undefined) => {
+                if (err) throw err;
+                if (userdata) {
+                  console.log('Setting user data');
+                  const { userId, username } = userdata as IUserdata;
+                  connection._id = userId;
+                  connection.username = username;
+                  connection.connectionId = generateConnectionId(userId, token)
+                  activeConnections.add(connection);
+                }
+              });
+            }catch(error){
+              console.error(error)
+            }
           }
         }
       }
@@ -51,7 +58,7 @@ export default function WebSocketServerSetUp(server: any){
     
       connection.addEventListener('message', async (message: MessageEvent) => {
         const messageStr: string = message.data;
-    
+        
         if(messageStr === 'pong'){
           clearTimeout(connection.deathTimer);
         }else{
@@ -90,7 +97,11 @@ export default function WebSocketServerSetUp(server: any){
               const recipientConnections = [...wss.clients].filter(
                 (c) => (c as unknown as IConnectionData)._id === messageData.recipient || (c as unknown as IConnectionData)._id === messageData.sender
               );
-        
+
+              await UserModel.updateOne(
+                { _id: messageData.recipient },
+                { $inc: { [`unreadMessageCounts.${messageData.sender}`]: 1 } }
+              );
               recipientConnections.forEach((c) => c.send(JSON.stringify({
                 text: messageData.text,
                 sender: connection._id,
